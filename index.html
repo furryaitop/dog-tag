@@ -473,8 +473,8 @@
             </div>
             <div class="grid">
                 <div class="row"><label>吊孔大小（% 高度）</label><input id="holePct" type="range" min="3" max="12" step="0.1"
-                        value="6.9"></div>
-                <div class="row"><label>吊孔 X（% 寬度）</label><input id="holeX" type="range" min="10" max="90" value="22">
+                        value="3.45"></div>
+                <div class="row"><label>吊孔 X（% 寬度）</label><input id="holeX" type="range" min="10" max="90" value="50">
                 </div>
             </div>
             <div class="row">
@@ -631,38 +631,86 @@
                 } catch (err) { alert('字型載入失敗，請確認為 TTF/OTF 檔。'); }
             });
 
+            // 維持名稱：dogtagPath(ctx, x, y, w, h, rIgnored, bulgeIgnored)
+            // 造型：左右直線＋上下扁弧（非圓角、非半圓）
+            function dogtagPath(ctx, x, y, w, h/*, rIgnored, bulgeIgnored */) {
+                // 想微調就改這兩個比例（占整體高度）
+                const topSag = h * 0.15;  // 上弧高度 ~6.5%H
+                const botSag = h * 0.15;  // 下弧高度 ~8.5%H
+
+                const cx = x + w / 2;
+
+                ctx.beginPath();
+                // 左上交點
+                ctx.moveTo(x, y + topSag);
+
+                // 上弧（橢圓弧，兩端切線為垂直，左右是直線）
+                ctx.ellipse(cx, y + topSag, w / 2, topSag, 0, Math.PI, 0, false);
+
+                // 右直邊
+                ctx.lineTo(x + w, y + h - botSag);
+
+                // 下弧
+                ctx.ellipse(cx, y + h - botSag, w / 2, botSag, 0, 0, Math.PI, false);
+
+                // 左直邊回起點
+                ctx.closePath();
+            }
+
+            // 維持名稱：dogtagPathInset(ctx, inset, w, h, rIgnored, bulgeIgnored)
+            // 內縮同形狀，給描邊/高光/裁切用
+            function dogtagPathInset(ctx, inset, w, h/*, rIgnored, bulgeIgnored */) {
+                ctx.save();
+                ctx.translate(inset, inset);
+                const W = w - inset * 2;
+                const H = h - inset * 2;
+                dogtagPath(ctx, 0, 0, W, H); // 內部自算弧度
+                ctx.restore();
+            }
+
+
+
             // 畫底板與孔
             function drawTagBase(ctx, opt, mirror = false) {
                 const r = (parseFloat(C.radiusPct.value) / 100) * TAG_H;
-
                 const holePct = parseFloat(C.holePct.value) / 100;
                 const holeXp = parseFloat(C.holeX.value) / 100;
                 const holeYp = parseFloat(C.holeY.value) / 100;
 
-                // 如果 mirror=true，就左右翻轉孔位
+                // 左右鏡像孔位（你的既有設定）
                 const hx = mirror ? (1 - holeXp) : holeXp;
                 const hy = holeYp;
-
                 const holeR = holePct * TAG_H;
                 const holeX = hx * TAG_W;
                 const holeY = hy * TAG_H;
 
-                // --- 以下保持你原本的底板與孔繪製 ---
+                // —— 新：用狗牌路徑畫底 —— //
                 const grad = ctx.createLinearGradient(0, 0, 0, TAG_H);
                 grad.addColorStop(0, opt.bg2); grad.addColorStop(.55, opt.bg1); grad.addColorStop(1, opt.bg2);
-                ctx.fillStyle = grad; roundRect(ctx, 0, 0, TAG_W, TAG_H, r); ctx.fill();
+                ctx.fillStyle = grad;
 
+                // 建議弧度：高度的 5%（看起來最接近實物），你也可以綁一個 slider
+                const bulgePx = TAG_H * 0.08;
+
+                dogtagPath(ctx, 0, 0, TAG_W, TAG_H);
+                ctx.fill();
+
+                // 外框陰影/描邊
                 ctx.save();
                 ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 8;
                 ctx.strokeStyle = opt.stroke; ctx.lineWidth = 2;
-                roundRect(ctx, 2, 2, TAG_W - 4, TAG_H - 4, r - 2); ctx.stroke();
+                dogtagPathInset(ctx, 2, TAG_W, TAG_H); // 內縮 2px 的同形狀
+                ctx.stroke();
                 ctx.restore();
 
+                // 中央亮帶
                 const shine = ctx.createLinearGradient(TAG_W * 0.2, 0, TAG_W * 0.8, 0);
                 shine.addColorStop(0, 'rgba(255,255,255,0)');
                 shine.addColorStop(.5, opt.shine + '40');
                 shine.addColorStop(1, 'rgba(255,255,255,0)');
-                ctx.fillStyle = shine; roundRect(ctx, 6, 6, TAG_W - 12, TAG_H - 12, r - 6); ctx.fill();
+                ctx.fillStyle = shine;
+                dogtagPathInset(ctx, 6, TAG_W, TAG_H); // 內縮 6px
+                ctx.fill();
 
                 // 孔
                 ctx.save();
@@ -671,18 +719,6 @@
                 ctx.beginPath(); ctx.arc(holeX - holeR * 0.25, holeY - holeR * 0.25, holeR * 0.45, 0, Math.PI * 2);
                 ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fill();
                 ctx.restore();
-            }
-
-
-            function roundRect(ctx, x, y, w, h, r) {
-                const rr = Math.max(0, Math.min(r, Math.min(w, h) / 2));
-                ctx.beginPath();
-                ctx.moveTo(x + rr, y);
-                ctx.arcTo(x + w, y, x + w, y + h, rr);
-                ctx.arcTo(x + w, y + h, x, y + h, rr);
-                ctx.arcTo(x, y + h, x, y, rr);
-                ctx.arcTo(x, y, x + w, y, rr);
-                ctx.closePath();
             }
 
             function drawEngravedText(ctx, text, x, y, { font, align = 'center', vAlign = 'alphabetic', effect = 'engraved', baseColor = '#222' } = {}) {
@@ -853,10 +889,11 @@
                         const x = (W - drawW) / 2; const y = (H - drawH) / 2;
 
                         const mode = C.monoMode.value;
-                        const r = (parseFloat(C.radiusPct.value) / 100) * Math.min(TAG_W, TAG_H) - 10;
+                        const r = (parseFloat(C.radiusPct.value) / 100) * Math.min(W, H) - 10;
                         if (mode === 'off') {
                             CTX.save();
-                            roundRect(CTX, 10, 10, W - 20, H - 20, r); CTX.clip();
+                            dogtagPathInset(CTX, 10, W, H, r, H * 0.05); // 和上面同樣 bulgePx
+                            ctx.clip();
                             CTX.globalAlpha = .92; CTX.drawImage(backImg, x, y, drawW, drawH);
                             CTX.restore();
                         } else {
@@ -866,7 +903,8 @@
                             temp.getContext('2d').drawImage(backImg, 0, 0, temp.width, temp.height);
                             const mono = makeMonoCanvas(temp, mode, C.monoColor.value, parseInt(C.monoThresh.value), parseInt(C.outlineW.value));
                             CTX.save();
-                            roundRect(CTX, 10, 10, W - 20, H - 20, r); CTX.clip();
+                            dogtagPathInset(CTX, 10, W, H, r, H * 0.05); // 和上面同樣 bulgePx
+                            ctx.clip();
                             CTX.drawImage(mono, x, y);
                             CTX.restore();
                         }
@@ -879,7 +917,7 @@
                     // 旋轉內容 90 度（逆時針），基準點設在畫布中心
                     ctx.save();
                     ctx.translate(TAG_W / 2, TAG_H / 2);
-                    ctx.rotate(-Math.PI / 2);
+                    ctx.rotate(Math.PI / 2);
                     ctx.translate(-TAG_H / 2, -TAG_W / 2);
                     drawBackInner(ctx, TAG_H, TAG_W); // 注意：W/H 互換
                     ctx.restore();
@@ -1160,15 +1198,17 @@
                             else { if (arImg > arBox) { drawH = boxH * scalePct; drawW = drawH * arImg; } else { drawW = boxW * scalePct; drawH = drawW / arImg; } }
                             const x = (W - drawW) / 2, y = (H - drawH) / 2;
                             const mode = C.monoMode.value;
-                            const r = (parseFloat(C.radiusPct.value) / 100) * Math.min(TAG_W, TAG_H) - 10;
+                            const r = (parseFloat(C.radiusPct.value) / 100) * Math.min(W, H) - 10;
                             if (mode === 'off') {
-                                CTX.save(); roundRect(CTX, 10, 10, W - 20, H - 20, r); CTX.clip();
+                                CTX.save(); dogtagPathInset(CTX, 10, W, H, r, H * 0.05); // 和上面同樣 bulgePx
+                                ctx.clip();
                                 CTX.globalAlpha = .92; CTX.drawImage(backImg, x, y, drawW, drawH); CTX.restore();
                             } else {
                                 const temp = document.createElement('canvas'); temp.width = Math.max(1, Math.floor(drawW)); temp.height = Math.max(1, Math.floor(drawH));
                                 temp.getContext('2d').drawImage(backImg, 0, 0, temp.width, temp.height);
                                 const mono = makeMonoCanvas(temp, mode, C.monoColor.value, parseInt(C.monoThresh.value), parseInt(C.outlineW.value));
-                                CTX.save(); roundRect(CTX, 10, 10, W - 20, H - 20, r); CTX.clip(); CTX.drawImage(mono, x, y); CTX.restore();
+                                CTX.save(); dogtagPathInset(CTX, 10, W, H, r, H * 0.05); // 和上面同樣 bulgePx
+                                ctx.clip(); CTX.drawImage(mono, x, y); CTX.restore();
                             }
                         }
                     }
@@ -1178,7 +1218,7 @@
                     } else {
                         ctx.save();
                         ctx.translate(TAG_W / 2, TAG_H / 2);
-                        ctx.rotate(-Math.PI / 2);
+                        ctx.rotate(Math.PI / 2);
                         ctx.translate(-TAG_H / 2, -TAG_W / 2);
                         drawBackInner(ctx, TAG_H, TAG_W);
                         ctx.restore();
@@ -1346,7 +1386,6 @@
                 C.backMode.value = 'text';
                 onAnyChange();
             });
-
 
             // 美軍規格預設（尺寸/孔徑）
             C.presetMil.addEventListener('click', () => {
