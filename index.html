@@ -118,8 +118,8 @@
         <div class="row">
           <label>版式</label>
           <select id="backOrient">
-            <option value="portrait" selected>直式（不旋轉）</option>
-            <option value="landscape">橫式（旋轉內容 90°）</option>
+            <option value="portrait">直式（不旋轉）</option>
+            <option value="landscape" selected>橫式（旋轉內容 90°）</option>
           </select>
         </div>
         <div class="row">
@@ -140,11 +140,11 @@
         </div>
         <div class="grid">
           <div class="row"><label>第 3 行（血型）</label><input id="b3" type="text" placeholder="O POS"></div>
-          <div class="row"><label>第 4 行（宗教/備註）</label><input id="b4" type="text" placeholder="NO PREFERENCE"></div>
+          <div class="row"><label>第 4 行（宗教/藥物過敏/備註）</label><input id="b4" type="text" placeholder="NO PREFERENCE"></div>
         </div>
         <div class="row"><label>第 5 行（部別）</label><input id="b5" type="text" placeholder="US ARMY"></div>
         <div class="grid">
-          <div class="row"><label>文字大小</label><input id="backFontSize" type="range" min="24" max="90" value="46"></div>
+          <div class="row"><label>文字大小</label><input id="backFontSize" type="range" min="24" max="90" value="70"></div>
           <div class="row"><label>行距（%）</label><input id="backLineGap" type="range" min="70" max="160" value="110"></div>
         </div>
         <div class="stack">
@@ -309,12 +309,22 @@
   });
 
   // 畫底板與孔
-  function drawTagBase(ctx, opt){
+  function drawTagBase(ctx, opt, mirror=false){
     const r = (parseFloat(C.radiusPct.value)/100) * TAG_H;
-    const holeR = (parseFloat(C.holePct.value)/100) * TAG_H;
-    const holeX = (parseFloat(C.holeX.value)/100) * TAG_W;
-    const holeY = (parseFloat(C.holeY.value)/100) * TAG_H;
 
+    const holePct = parseFloat(C.holePct.value)/100;
+    const holeXp  = parseFloat(C.holeX.value)/100;
+    const holeYp  = parseFloat(C.holeY.value)/100;
+
+    // 如果 mirror=true，就左右翻轉孔位
+    const hx = mirror ? (1 - holeXp) : holeXp;
+    const hy = holeYp;
+
+    const holeR = holePct * TAG_H;
+    const holeX = hx * TAG_W;
+    const holeY = hy * TAG_H;
+
+    // --- 以下保持你原本的底板與孔繪製 ---
     const grad = ctx.createLinearGradient(0,0,0,TAG_H);
     grad.addColorStop(0, opt.bg2); grad.addColorStop(.55, opt.bg1); grad.addColorStop(1, opt.bg2);
     ctx.fillStyle = grad; roundRect(ctx,0,0,TAG_W,TAG_H,r); ctx.fill();
@@ -338,7 +348,8 @@
     ctx.beginPath(); ctx.arc(holeX - holeR*0.25, holeY - holeR*0.25, holeR*0.45, 0, Math.PI*2);
     ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fill();
     ctx.restore();
-  }
+}
+
 
   function roundRect(ctx,x,y,w,h,r){
     const rr = Math.max(0, Math.min(r, Math.min(w,h)/2));
@@ -424,7 +435,7 @@
     const ctx = FRONT.getContext('2d');
     const theme = themes[C.theme.value];
     ctx.clearRect(0,0,TAG_W,TAG_H);
-    drawTagBase(ctx, theme);
+    drawTagBase(ctx, theme, false);
 
     // 上方英文名（置中）
     const topTxt = (C.frontTop?.value || '').trim();
@@ -477,7 +488,7 @@
   const ctx = BACK.getContext('2d');
   const theme = themes[C.theme.value];
   ctx.clearRect(0,0,TAG_W,TAG_H);
-  drawTagBase(ctx, theme);
+  drawTagBase(ctx, theme, true);
 
   const orient = C.backOrient.value; // 'portrait' | 'landscape'
 
@@ -565,50 +576,50 @@
 
     // 重用目前設定繪製
     if(side==='front'){
-  drawTagBase(ctx, theme);
+        drawTagBase(ctx, theme, false);
 
-  // 上方英文名
-  const topTxt = (C.frontTop?.value || '').trim();
-  if (topTxt) {
-    const tSize = parseInt(C.frontTopSize.value);
-    const tMargin = parseInt(C.frontTopMargin.value);
-    const effect = C.bevel.value;
-    const frontFont = C.frontFontSel.value;
-    ctx.font = `700 ${tSize}px ${frontFont}`;
-    const text = topTxt.toUpperCase();
-    drawEngravedText(ctx, text, TAG_W/2, tMargin,
-      { font: ctx.font, align:'center', vAlign:'top', effect, baseColor: themes[C.theme.value].text });
-  }
+        // 上方英文名
+        const topTxt = (C.frontTop?.value || '').trim();
+        if (topTxt) {
+            const tSize = parseInt(C.frontTopSize.value);
+            const tMargin = parseInt(C.frontTopMargin.value);
+            const effect = C.bevel.value;
+            const frontFont = C.frontFontSel.value;
+            ctx.font = `700 ${tSize}px ${frontFont}`;
+            const text = topTxt.toUpperCase();
+            drawEngravedText(ctx, text, TAG_W/2, tMargin,
+            { font: ctx.font, align:'center', vAlign:'top', effect, baseColor: themes[C.theme.value].text });
+        }
 
-  // 直排中文（用 frontVY，X 永遠置中）
-  const vTxt=(C.frontVertical.value||'').trim();
-  if(vTxt){
-    const vSize=parseInt(C.frontVSize.value);
-    const vGap=parseInt(C.frontVGap.value)/100;
-    const vYpct=parseFloat(C.frontVY.value)/100;
-    const effect=C.bevel.value;
-    const frontFont=C.frontFontSel.value;
+        // 直排中文（用 frontVY，X 永遠置中）
+        const vTxt=(C.frontVertical.value||'').trim();
+        if(vTxt){
+            const vSize=parseInt(C.frontVSize.value);
+            const vGap=parseInt(C.frontVGap.value)/100;
+            const vYpct=parseFloat(C.frontVY.value)/100;
+            const effect=C.bevel.value;
+            const frontFont=C.frontFontSel.value;
 
-    ctx.font = `${vSize}px ${frontFont}`;
-    const chars=[...vTxt];
-    const lineH=vSize*vGap;
-    const x = TAG_W/2;
-    let yTop = TAG_H * vYpct;
-    chars.forEach((ch,i)=> drawEngravedText(ctx, ch, x, yTop + i*lineH,
-      {font:ctx.font, align:'center', vAlign:'top', effect, baseColor: themes[C.theme.value].text}));
-  }
+            ctx.font = `${vSize}px ${frontFont}`;
+            const chars=[...vTxt];
+            const lineH=vSize*vGap;
+            const x = TAG_W/2;
+            let yTop = TAG_H * vYpct;
+            chars.forEach((ch,i)=> drawEngravedText(ctx, ch, x, yTop + i*lineH,
+            {font:ctx.font, align:'center', vAlign:'top', effect, baseColor: themes[C.theme.value].text}));
+        }
 
-  // 底部
-  const bTxt=(C.frontBottom.value||'').trim();
-  if(bTxt){
-    const bSize=parseInt(C.frontBottomSize.value), margin=parseInt(C.frontBottomMargin.value);
-    const frontFont=C.frontFontSel.value;
-    ctx.font = `600 ${bSize}px ${frontFont}`;
-    drawEngravedText(ctx, bTxt, TAG_W/2, TAG_H - margin,
-      { font: ctx.font, align:'center', vAlign:'alphabetic', effect: C.bevel.value, baseColor: themes[C.theme.value].text });
-  }
+        // 底部
+        const bTxt=(C.frontBottom.value||'').trim();
+        if(bTxt){
+            const bSize=parseInt(C.frontBottomSize.value), margin=parseInt(C.frontBottomMargin.value);
+            const frontFont=C.frontFontSel.value;
+            ctx.font = `600 ${bSize}px ${frontFont}`;
+            drawEngravedText(ctx, bTxt, TAG_W/2, TAG_H - margin,
+            { font: ctx.font, align:'center', vAlign:'alphabetic', effect: C.bevel.value, baseColor: themes[C.theme.value].text });
+        }
 }else{
-  drawTagBase(ctx, theme);
+  drawTagBase(ctx, theme, true);
   const orient = C.backOrient.value;
 
   function drawBackInner(CTX, W, H){
@@ -719,7 +730,7 @@ C.tplICE.addEventListener('click', () => {
   C.b1.value='HSU YAN';
   C.b2.value='DOB 2025-01-21';
   C.b3.value='O POS';
-  C.b4.value='PENICILLIN ALLERGY';
+  C.b4.value='DRUG ALLERGY / DEMO';
   C.b5.value='ICE: +886-9XXXXXXX';
   C.backMode.value='text';
   render();
