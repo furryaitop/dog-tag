@@ -1,0 +1,745 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>直向軍牌產生器 Pro｜Dog Tag Generator (Portrait)</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --ink:#e7ebf3; --muted:#9aa3b2;
+  }
+  *{box-sizing:border-box}
+  body{ margin:0; background:#0b0e13; color:var(--ink);
+        font-family: ui-sans-serif, system-ui, -apple-system, "Noto Sans TC","PingFang TC","Microsoft JhengHei", Segoe UI, Roboto, Helvetica, Arial; }
+  header{ padding:18px clamp(14px,3vw,26px); display:flex; align-items:baseline; gap:10px}
+  header h1{ font-size:clamp(18px,3vw,24px); margin:0 }
+  header .sub{ color:var(--muted); font-size:.95em}
+  .wrap{ display:grid; grid-template-columns: min(420px, 100%) 1fr; gap:clamp(14px,2.2vw,22px);
+         padding:0 clamp(14px,3vw,26px) clamp(18px,3vw,26px)}
+  .panel{ background:linear-gradient(180deg,#151922,#0f131a); border:1px solid #222a36; border-radius:12px; padding:14px;
+          box-shadow:0 8px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.03); }
+  .panel h2{font-size:15px; margin:6px 0 10px; color:#c7d2e2}
+  .grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .row{ display:flex; flex-direction:column; gap:6px; margin-bottom:8px}
+  label{ font-size:12px; color:var(--muted)}
+  input[type="text"], select, .btn, input[type="file"], input[type="color"]{
+    width:100%; background:#0e1218; border:1px solid #222a36; color:var(--ink);
+    padding:9px 10px; border-radius:10px; outline:none; font-size:14px;
+  }
+  input[type="range"]{ width:100% }
+  .btn{ cursor:pointer; text-align:center; user-select:none; transition:.15s transform, .2s border-color;
+        background:linear-gradient(180deg,#1a2330,#121826); border:1px solid #2c3a4f; border-radius:10px; padding:10px }
+  .btn:hover{ transform:translateY(-1px); border-color:#46618c }
+  .btn.primary{ background:linear-gradient(180deg, #2b68ff, #1e47b6); border-color:#2b68ff }
+  .small{ font-size:12px; color:#93a0b3 }
+  .hr{ height:1px; background:linear-gradient(90deg,transparent,#273246,transparent); margin:10px 0 }
+  .preview{ display:grid; gap:12px; grid-template-columns:1fr 1fr; align-items:start; }
+  .canvasWrap{ background:linear-gradient(180deg,#0e1218,#0a0d12); border:1px solid #1b2330; border-radius:12px; padding:10px }
+  .canvasWrap h3{ margin:0 0 6px; font-size:12px; color:#c9d6ea }
+  /* 預覽縮小：單張 ~300px 寬 */
+  canvas{ width:min(100%, 100px); height:auto; display:block; background:transparent; border-radius:8px}
+  .badges{ display:flex; gap:8px; flex-wrap:wrap; margin-top:4px }
+  .badge{ font-size:11px; color:#cbd5e6; padding:6px 8px; border:1px solid #2a3343; border-radius:999px; background:#0f141d }
+  @media (max-width:980px){ .wrap{ grid-template-columns: 1fr } .preview{ grid-template-columns:1fr } }
+</style>
+</head>
+<body>
+  <header>
+    <h1>直向軍牌產生器 Pro</h1>
+    <div class="sub">直向版、洞孔可調（預設美軍規格）、多字型、圖片單色化／輪廓、可匯出 PNG</div>
+  </header>
+
+  <div class="wrap">
+    <!-- 左側控制 -->
+    <div class="panel" id="controls">
+      <h2>前面（Front）</h2>
+      <div class="row"><label>直排文字（例：炎旭）</label><input id="frontVertical" type="text" value="炎旭"></div>
+      <div class="row"><label>底部橫排（例：2025.01.21）</label><input id="frontBottom" type="text" value="2025.01.21"></div>
+      <div class="row">
+        <label>上方橫排（英文名）</label>
+        <input id="frontTop" type="text" value="HowlBlaze">
+      </div>
+      <div class="grid">
+        <div class="row">
+          <label>上方字體大小</label>
+          <input id="frontTopSize" type="range" min="20" max="120" value="60">
+        </div>
+        <div class="row">
+          <label>距離上緣（px）</label>
+          <input id="frontTopMargin" type="range" min="40" max="260" value="180">
+        </div>
+      </div>
+      <div class="grid">
+        <div class="row"><label>直排字體大小</label><input id="frontVSize" type="range" min="40" max="320" value="220"></div>
+        <div class="row"><label>直排行距（%）</label><input id="frontVGap" type="range" min="60" max="180" value="110"></div>
+      </div>
+      <div class="grid">
+        <div class="row">
+            <label>直排 Y 位置（%）</label>
+            <input id="frontVY" type="range" min="0" max="100" value="33">
+          </div>
+          
+        <div class="row"><label>底部字體大小</label><input id="frontBottomSize" type="range" min="20" max="120" value="54"></div>
+      </div>
+      <div class="grid">
+        <div class="row"><label>底部離下緣距離（px）</label><input id="frontBottomMargin" type="range" min="10" max="160" value="60"></div>
+        <div class="row"><label>浮雕效果</label>
+          <select id="bevel"><option value="engraved" selected>凹刻</option><option value="embossed">浮凸</option></select>
+        </div>
+      </div>
+      <div class="grid">
+        <div class="row"><label>前面字型</label>
+          <select id="frontFontSel">
+            <option value='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif' selected>預設（中文黑體）</option>
+            <option value='"Noto Serif TC","PingFang TC","Microsoft JhengHei",serif'>中文明體</option>
+            <option value='system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif'>系統無襯線</option>
+          </select>
+        </div>
+        <div class="row"><label>背面字型</label>
+          <select id="backFontSel">
+            <option value='ui-monospace,"Roboto Mono",Menlo,Consolas,monospace' selected>等寬（軍牌風）</option>
+            <option value='"Impact","Arial Black",sans-serif'>粗黑（近 Stencil 感）</option>
+            <option value='system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif'>系統無襯線</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <label>上傳自訂字型（TTF/OTF）</label>
+        <input id="fontUpload" type="file" accept=".ttf,.otf">
+        <span class="small">上傳後可在清單選「Custom Font」套用前/背面。</span>
+      </div>
+
+      <div class="hr"></div>
+      <h2>背面（Back）</h2>
+      <div class="row"><label>模式</label>
+        <select id="backMode"><option value="text" selected>文字</option><option value="image">圖片</option></select>
+      </div>
+      <div class="grid">
+        <div class="row">
+          <label>版式</label>
+          <select id="backOrient">
+            <option value="portrait" selected>直式（不旋轉）</option>
+            <option value="landscape">橫式（旋轉內容 90°）</option>
+          </select>
+        </div>
+        <div class="row">
+          <label>快速模板</label>
+          <div class="stack">
+            <button class="btn" id="tplMil">美軍風</button>
+            <button class="btn" id="tplPersonal">個人化</button>
+            <button class="btn" id="tplICE">醫療 ICE</button>
+          </div>
+        </div>
+      </div>
+      
+
+      <div id="backTextFields">
+        <div class="grid">
+          <div class="row"><label>第 1 行（姓名）</label><input id="b1" type="text" placeholder="YAN HSU / 炎旭"></div>
+          <div class="row"><label>第 2 行（編號）</label><input id="b2" type="text" placeholder="ID 20250121"></div>
+        </div>
+        <div class="grid">
+          <div class="row"><label>第 3 行（血型）</label><input id="b3" type="text" placeholder="O POS"></div>
+          <div class="row"><label>第 4 行（宗教/備註）</label><input id="b4" type="text" placeholder="NO PREFERENCE"></div>
+        </div>
+        <div class="row"><label>第 5 行（部別）</label><input id="b5" type="text" placeholder="US ARMY"></div>
+        <div class="grid">
+          <div class="row"><label>文字大小</label><input id="backFontSize" type="range" min="24" max="90" value="46"></div>
+          <div class="row"><label>行距（%）</label><input id="backLineGap" type="range" min="70" max="160" value="110"></div>
+        </div>
+        <div class="stack">
+          <button class="btn" id="fillUS">一鍵套用「美軍風」模板</button>
+          <span class="small">格式參考（DoD ID／血型／宗教）。</span>
+        </div>
+      </div>
+
+      <div id="backImageFields" style="display:none">
+        <div class="row"><label>上傳圖片</label><input id="imgInput" type="file" accept="image/*"></div>
+        <div class="grid">
+          <div class="row"><label>縮放</label><input id="imgScale" type="range" min="20" max="180" value="100"></div>
+          <div class="row"><label>邊界內縮（px）</label><input id="imgPadding" type="range" min="0" max="80" value="12"></div>
+        </div>
+        <div class="grid">
+          <div class="row"><label>填滿模式</label>
+            <select id="imgFit"><option value="contain" selected>完整顯示</option><option value="cover">充滿</option></select>
+          </div>
+          <div class="row"><label>單色化</label>
+            <select id="monoMode"><option value="off" selected>關閉</option><option value="fill">單色填滿</option><option value="outline">單色描邊</option></select>
+          </div>
+        </div>
+        <div class="grid">
+          <div class="row"><label>單色顏色</label><input id="monoColor" type="color" value="#111111"></div>
+          <div class="row"><label>臨界值（0–255）</label><input id="monoThresh" type="range" min="0" max="255" value="140"></div>
+        </div>
+        <div class="row"><label>描邊寬度（像素）</label><input id="outlineW" type="range" min="1" max="20" value="6"></div>
+      </div>
+
+      <div class="hr"></div>
+      <h2>外觀／吊孔</h2>
+      <div class="grid">
+        <div class="row">
+          <label>金屬色系</label>
+          <select id="theme">
+            <option value="silver" selected>霧銀</option>
+            <option value="gunmetal">槍灰</option>
+            <option value="black">消光黑</option>
+          </select>
+        </div>
+        <div class="row">
+          <label>角圓弧（% 高度）</label><input id="radiusPct" type="range" min="8" max="25" value="18">
+        </div>
+      </div>
+      <div class="grid">
+        <div class="row"><label>吊孔大小（% 高度）</label><input id="holePct" type="range" min="3" max="12" step="0.1" value="6.9"></div>
+        <div class="row"><label>吊孔 X（% 寬度）</label><input id="holeX" type="range" min="10" max="90" value="22"></div>
+      </div>
+      <div class="row">
+        <label>吊孔 Y（% 高度）</label><input id="holeY" type="range" min="6" max="25" step="0.1" value="9.5">
+        <div class="small">預設接近美軍常見：牌 50×28 mm、孔徑約 3.5 mm（6.9% 高度）、上方靠左。孔位可依喜好調整。</div>
+      </div>
+      <div class="stack">
+        <button class="btn" id="presetMil">套用「US Mil-Spec」預設</button>
+        <span class="small">大小/孔徑/位置一鍵回到建議值。</span>
+      </div>
+
+      <div class="hr"></div>
+      <h2>匯出</h2>
+      <div class="grid">
+        <div class="row"><label>輸出倍率</label>
+          <select id="scale"><option value="1">1×</option><option value="2" selected>2×</option><option value="3">3×</option></select>
+        </div>
+        <div class="row" style="align-self:end">
+          <div class="stack">
+            <button id="saveFront" class="btn primary">下載「正面」PNG</button>
+            <button id="saveBack" class="btn primary">下載「背面」PNG</button>
+          </div>
+        </div>
+      </div>
+      <div class="badges">
+        <div class="badge">比例：28.6×50.8 mm（直向）</div>
+        <div class="badge">畫布：560×1000px</div>
+      </div>
+    </div>
+
+    <!-- 右側預覽（縮小） -->
+    <div class="panel">
+      <h2>即時預覽（直向）</h2>
+      <div class="preview">
+        <div class="canvasWrap"><h3>Front 正面</h3><canvas id="front" width="560" height="1000"></canvas></div>
+        <div class="canvasWrap"><h3>Back 背面</h3><canvas id="back" width="560" height="1000"></canvas></div>
+      </div>
+      <div class="hr"></div>
+      <div class="small">提示：如要完全貼近實體雕刻風格，可用「凹刻」並選等寬字體。</div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // —— 直向基準尺寸（約 28.6×50.8mm） ——
+  const TAG_W = 560, TAG_H = 1000;
+  const FRONT = document.getElementById('front');
+  const BACK  = document.getElementById('back');
+
+  const $ = id => document.getElementById(id);
+  const C = {
+    frontVertical: $('frontVertical'), frontBottom: $('frontBottom'),
+    frontTop: $('frontTop'), frontTopSize: $('frontTopSize'), frontTopMargin: $('frontTopMargin'),
+    frontVSize: $('frontVSize'), frontVGap: $('frontVGap'),
+    frontVY: $('frontVY'), frontBottomSize: $('frontBottomSize'),
+    frontBottomMargin: $('frontBottomMargin'), bevel: $('bevel'),
+    frontFontSel: $('frontFontSel'), backFontSel: $('backFontSel'),
+    fontUpload: $('fontUpload'),
+
+    backMode: $('backMode'), backOrient: $('backOrient'),
+    tplMil: $('tplMil'), tplPersonal: $('tplPersonal'), tplICE: $('tplICE'),
+    b1:$('b1'), b2:$('b2'), b3:$('b3'), b4:$('b4'), b5:$('b5'),
+    backFontSize:$('backFontSize'), backLineGap:$('backLineGap'),
+    fillUS:$('fillUS'),
+
+    imgInput:$('imgInput'), imgScale:$('imgScale'),
+    imgPadding:$('imgPadding'), imgFit:$('imgFit'),
+    monoMode:$('monoMode'), monoColor:$('monoColor'),
+    monoThresh:$('monoThresh'), outlineW:$('outlineW'),
+
+    theme:$('theme'), radiusPct:$('radiusPct'),
+    holePct:$('holePct'), holeX:$('holeX'), holeY:$('holeY'),
+
+    presetMil:$('presetMil'), scale:$('scale'),
+    saveFront:$('saveFront'), saveBack:$('saveBack'),
+  };
+
+  // 主題
+  const themes = {
+    silver:{ bg1:'#cfd6df', bg2:'#eef2f7', edge:'#9aa3ad', stroke:'#748091', shine:'#ffffff', text:'#23262b' },
+    gunmetal:{ bg1:'#6b737d', bg2:'#8c949e', edge:'#444b53', stroke:'#2f353c', shine:'#e8ecf3', text:'#111214' },
+    black:{ bg1:'#32363b', bg2:'#4a4f56', edge:'#1a1d21', stroke:'#0d0f11', shine:'#cfd6df', text:'#e7ebf3' },
+  };
+
+  let backImg = null;
+  let customFontName = null;
+
+  // 字型上傳：將 TTF/OTF 載入為 blob font-face
+  C.fontUpload?.addEventListener('change', async e=>{
+    const file = e.target.files?.[0];
+    if(!file) return;
+    try{
+      const fontName = 'CustomFont_' + Math.random().toString(36).slice(2);
+      const data = await file.arrayBuffer();
+      const ff = new FontFace(fontName, data); // data 是 ArrayBuffer
+        await ff.load();
+        document.fonts.add(ff); // ✅ 標準 JS，無 TypeScript 語法
+        customFontName = fontName;
+
+
+      // 在 selector 加入選項
+      const opt1 = document.createElement('option');
+      opt1.value = `"${fontName}", ${C.frontFontSel.value}`;
+      opt1.textContent = 'Custom Font';
+      C.frontFontSel.appendChild(opt1);
+      const opt2 = document.createElement('option');
+      opt2.value = `"${fontName}", ${C.backFontSel.value}`;
+      opt2.textContent = 'Custom Font';
+      C.backFontSel.appendChild(opt2);
+
+      // 自動套用在當前兩面
+      C.frontFontSel.value = opt1.value;
+      C.backFontSel.value  = opt2.value;
+      render();
+    }catch(err){ alert('字型載入失敗，請確認為 TTF/OTF 檔。'); }
+  });
+
+  // 畫底板與孔
+  function drawTagBase(ctx, opt){
+    const r = (parseFloat(C.radiusPct.value)/100) * TAG_H;
+    const holeR = (parseFloat(C.holePct.value)/100) * TAG_H;
+    const holeX = (parseFloat(C.holeX.value)/100) * TAG_W;
+    const holeY = (parseFloat(C.holeY.value)/100) * TAG_H;
+
+    const grad = ctx.createLinearGradient(0,0,0,TAG_H);
+    grad.addColorStop(0, opt.bg2); grad.addColorStop(.55, opt.bg1); grad.addColorStop(1, opt.bg2);
+    ctx.fillStyle = grad; roundRect(ctx,0,0,TAG_W,TAG_H,r); ctx.fill();
+
+    ctx.save();
+    ctx.shadowColor='rgba(0,0,0,.35)'; ctx.shadowBlur=18; ctx.shadowOffsetY=8;
+    ctx.strokeStyle=opt.stroke; ctx.lineWidth=2;
+    roundRect(ctx,2,2,TAG_W-4,TAG_H-4,r-2); ctx.stroke();
+    ctx.restore();
+
+    const shine = ctx.createLinearGradient(TAG_W*0.2,0,TAG_W*0.8,0);
+    shine.addColorStop(0,'rgba(255,255,255,0)');
+    shine.addColorStop(.5, opt.shine + '40');
+    shine.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle = shine; roundRect(ctx,6,6,TAG_W-12,TAG_H-12,r-6); ctx.fill();
+
+    // 孔
+    ctx.save();
+    ctx.beginPath(); ctx.arc(holeX, holeY, holeR, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(holeX - holeR*0.25, holeY - holeR*0.25, holeR*0.45, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fill();
+    ctx.restore();
+  }
+
+  function roundRect(ctx,x,y,w,h,r){
+    const rr = Math.max(0, Math.min(r, Math.min(w,h)/2));
+    ctx.beginPath();
+    ctx.moveTo(x+rr,y);
+    ctx.arcTo(x+w, y, x+w, y+h, rr);
+    ctx.arcTo(x+w, y+h, x, y+h, rr);
+    ctx.arcTo(x, y+h, x, y, rr);
+    ctx.arcTo(x, y, x+w, y, rr);
+    ctx.closePath();
+  }
+
+  function drawEngravedText(ctx, text, x, y, {font, align='center', vAlign='alphabetic', effect='engraved', baseColor='#222'}={}){
+    ctx.textAlign = align; ctx.textBaseline = vAlign; ctx.font = font;
+    const light='rgba(255,255,255,.70)', dark='rgba(0,0,0,.50)', off=1.8;
+    if(effect==='engraved'){
+      ctx.save(); ctx.shadowColor=light; ctx.shadowOffsetX=-off; ctx.shadowOffsetY=-off; ctx.fillStyle=baseColor; ctx.fillText(text,x,y); ctx.restore();
+      ctx.save(); ctx.shadowColor=dark;  ctx.shadowOffsetX= off; ctx.shadowOffsetY= off; ctx.fillStyle=baseColor; ctx.fillText(text,x,y); ctx.restore();
+    }else{
+      ctx.save(); ctx.shadowColor=dark;  ctx.shadowOffsetX=-off; ctx.shadowOffsetY=-off; ctx.fillStyle=baseColor; ctx.fillText(text,x,y); ctx.restore();
+      ctx.save(); ctx.shadowColor=light; ctx.shadowOffsetX= off; ctx.shadowOffsetY= off; ctx.fillStyle=baseColor; ctx.fillText(text,x,y); ctx.restore();
+    }
+  }
+
+  // 單色化工具：回傳 {canvas, ctx}
+  function makeMonoCanvas(img, mode, color, thresh, outlineW){
+    const off = document.createElement('canvas');
+    off.width = img.width; off.height = img.height;
+    const ictx = off.getContext('2d');
+    ictx.drawImage(img,0,0);
+    const {data,width,height} = ictx.getImageData(0,0,off.width,off.height);
+    // 轉灰階 + 二值化做遮罩
+    for(let i=0;i<data.length;i+=4){
+      const r=data[i], g=data[i+1], b=data[i+2], a=data[i+3];
+      const gray = (r*0.2126 + g*0.7152 + b*0.0722);
+      const on = (a>10 && gray < thresh) ? 255 : 0;
+      data[i]=data[i+1]=data[i+2]=on; data[i+3]=on;
+    }
+    ictx.putImageData(new ImageData(data,width,height),0,0);
+
+    // 建立最終視覺：填滿或描邊
+    const fin = document.createElement('canvas');
+    fin.width = off.width; fin.height = off.height;
+    const fctx = fin.getContext('2d');
+
+    if(mode==='fill'){
+      // 用遮罩 + 指定顏色填滿
+      fctx.drawImage(off,0,0);
+      fctx.globalCompositeOperation='source-in';
+      fctx.fillStyle = color; fctx.fillRect(0,0,fin.width,fin.height);
+      fctx.globalCompositeOperation='source-over';
+    }else if(mode==='outline'){
+      // 先畫遮罩顏色，再用多向陰影產生外圈線
+      // 底：透明
+      // 外框：用多方向投影近似描邊
+      const n = Math.max(1, Math.floor(outlineW));
+      for(let dx=-n; dx<=n; dx+=Math.max(1,Math.floor(n/3))){
+        for(let dy=-n; dy<=n; dy+=Math.max(1,Math.floor(n/3))){
+          fctx.save();
+          fctx.globalAlpha=.9;
+          fctx.drawImage(off,dx,dy);
+          fctx.globalCompositeOperation='source-in';
+          fctx.fillStyle = color;
+          fctx.fillRect(0,0,fin.width,fin.height);
+          fctx.globalCompositeOperation='destination-over';
+          fctx.restore();
+        }
+      }
+      // 中心留白：用白色把內部清掉，再疊一層細線
+      fctx.globalCompositeOperation='destination-out';
+      fctx.drawImage(off,0,0);
+      fctx.globalCompositeOperation='source-over';
+      // 疊細線（實心）
+      fctx.drawImage(off,0,0);
+      fctx.globalCompositeOperation='source-in';
+      fctx.fillStyle = color; fctx.fillRect(0,0,fin.width,fin.height);
+      fctx.globalCompositeOperation='source-over';
+    }
+    return fin;
+  }
+
+  function drawFront(){
+    const ctx = FRONT.getContext('2d');
+    const theme = themes[C.theme.value];
+    ctx.clearRect(0,0,TAG_W,TAG_H);
+    drawTagBase(ctx, theme);
+
+    // 上方英文名（置中）
+    const topTxt = (C.frontTop?.value || '').trim();
+    if (topTxt) {
+        const tSize = parseInt(C.frontTopSize.value);
+        const tMargin = parseInt(C.frontTopMargin.value);
+        const effect = C.bevel.value;
+        const frontFont = C.frontFontSel.value;
+        ctx.font = `700 ${tSize}px ${frontFont}`;
+        // 小技巧：用全大寫提升可讀與雕刻感
+        const text = topTxt.toUpperCase();
+        drawEngravedText(ctx, text, TAG_W/2, tMargin, {
+        font: ctx.font, align:'center', vAlign:'top', effect, baseColor: theme.text
+        });
+    }
+
+    // 直排中文
+    const vTxt = (C.frontVertical.value||'').trim();
+    const vSize = parseInt(C.frontVSize.value);
+    const vGap  = parseInt(C.frontVGap.value)/100;
+    const vYpct = parseFloat(C.frontVY.value)/100;
+    const effect = C.bevel.value;
+    const frontFont = C.frontFontSel.value;
+
+    if(vTxt){
+      ctx.textAlign='center'; ctx.textBaseline='top';
+      ctx.font = `${vSize}px ${frontFont}`;
+      const chars = [...vTxt]; const lineH = vSize*vGap;
+      const totalH = chars.length*lineH; const x = TAG_W / 2; // 永遠置中;
+      let yTop = TAG_H * vYpct; 
+      chars.forEach((ch,i)=>{
+        const y = yTop + i*lineH;
+        drawEngravedText(ctx, ch, x, y, {
+            font: ctx.font, align:'center', vAlign:'top', effect, baseColor: theme.text
+        });
+      });
+    }
+
+    // 底部橫排
+    const bTxt = (C.frontBottom.value||'').trim();
+    if(bTxt){
+      const bSize = parseInt(C.frontBottomSize.value);
+      const margin = parseInt(C.frontBottomMargin.value);
+      ctx.font = `600 ${bSize}px ${frontFont}`;
+      drawEngravedText(ctx, bTxt, TAG_W/2, TAG_H - margin, { font: ctx.font, align:'center', vAlign:'alphabetic', effect, baseColor: theme.text });
+    }
+  }
+
+  function drawBack(){
+  const ctx = BACK.getContext('2d');
+  const theme = themes[C.theme.value];
+  ctx.clearRect(0,0,TAG_W,TAG_H);
+  drawTagBase(ctx, theme);
+
+  const orient = C.backOrient.value; // 'portrait' | 'landscape'
+
+  // 內容繪製抽出成內部函式，接受一個內容區域寬高（可能被旋轉）
+  function drawBackInner(CTX, W, H){
+    if(C.backMode.value==='text'){
+      const f = parseInt(C.backFontSize.value);
+      const gap = parseInt(C.backLineGap.value)/100;
+      const lines = [C.b1.value,C.b2.value,C.b3.value,C.b4.value,C.b5.value]
+        .map(s=>(s||'').trim()).filter(Boolean);
+      const effect = C.bevel.value;
+      const backFont = C.backFontSel.value;
+      if(lines.length){
+        CTX.textAlign='center'; CTX.textBaseline='alphabetic';
+        CTX.font = `700 ${f}px ${backFont}`;
+        const lineH = f*gap; const totalH = lines.length*lineH; let y=(H-totalH)/2 + f;
+        for(const L of lines){
+          const text = L.replace(/\s+/g,' ').toUpperCase();
+          drawEngravedText(CTX, text, W/2, y, { font: CTX.font, align:'center', vAlign:'alphabetic', effect, baseColor: theme.text });
+          y += lineH;
+        }
+      }
+    }else if(backImg){
+      const pad = parseInt(C.imgPadding.value);
+      const boxW = W - pad*2, boxH = H - pad*2;
+      const scalePct = parseInt(C.imgScale.value)/100;
+      const fit = C.imgFit.value;
+      let drawW, drawH;
+      const arImg = backImg.width / backImg.height;
+      const arBox = boxW / boxH;
+
+      if(fit==='contain'){
+        if(arImg > arBox){ drawW = boxW * scalePct; drawH = drawW / arImg; }
+        else { drawH = boxH * scalePct; drawW = drawH * arImg; }
+      }else{
+        if(arImg > arBox){ drawH = boxH * scalePct; drawW = drawH * arImg; }
+        else { drawW = boxW * scalePct; drawH = drawW / arImg; }
+      }
+      const x = (W - drawW)/2; const y = (H - drawH)/2;
+
+      const mode = C.monoMode.value;
+      const r = (parseFloat(C.radiusPct.value)/100) * Math.min(TAG_W,TAG_H) - 10;
+      if(mode==='off'){
+        CTX.save();
+        roundRect(CTX, 10,10,W-20,H-20, r); CTX.clip();
+        CTX.globalAlpha = .92; CTX.drawImage(backImg, x, y, drawW, drawH);
+        CTX.restore();
+      }else{
+        const temp = document.createElement('canvas');
+        temp.width = Math.max(1, Math.floor(drawW));
+        temp.height= Math.max(1, Math.floor(drawH));
+        temp.getContext('2d').drawImage(backImg, 0, 0, temp.width, temp.height);
+        const mono = makeMonoCanvas(temp, mode, C.monoColor.value, parseInt(C.monoThresh.value), parseInt(C.outlineW.value));
+        CTX.save();
+        roundRect(CTX, 10,10,W-20,H-20, r); CTX.clip();
+        CTX.drawImage(mono, x, y);
+        CTX.restore();
+      }
+    }
+  }
+
+  if(orient === 'portrait'){
+    drawBackInner(ctx, TAG_W, TAG_H);
+  }else{
+    // 旋轉內容 90 度（逆時針），基準點設在畫布中心
+    ctx.save();
+    ctx.translate(TAG_W/2, TAG_H/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.translate(-TAG_H/2, -TAG_W/2);
+    drawBackInner(ctx, TAG_H, TAG_W); // 注意：W/H 互換
+    ctx.restore();
+  }
+}
+
+
+  function render(){ drawFront(); drawBack(); }
+
+  // 匯出 PNG（依倍率重繪兩面）
+  function saveCanvas(side){
+    const mult = parseInt(C.scale.value);
+    const cnv = document.createElement('canvas');
+    cnv.width = TAG_W * mult; cnv.height = TAG_H * mult;
+    const ctx = cnv.getContext('2d'); ctx.scale(mult, mult);
+    const theme = themes[C.theme.value];
+
+    // 重用目前設定繪製
+    if(side==='front'){
+  drawTagBase(ctx, theme);
+
+  // 上方英文名
+  const topTxt = (C.frontTop?.value || '').trim();
+  if (topTxt) {
+    const tSize = parseInt(C.frontTopSize.value);
+    const tMargin = parseInt(C.frontTopMargin.value);
+    const effect = C.bevel.value;
+    const frontFont = C.frontFontSel.value;
+    ctx.font = `700 ${tSize}px ${frontFont}`;
+    const text = topTxt.toUpperCase();
+    drawEngravedText(ctx, text, TAG_W/2, tMargin,
+      { font: ctx.font, align:'center', vAlign:'top', effect, baseColor: themes[C.theme.value].text });
+  }
+
+  // 直排中文（用 frontVY，X 永遠置中）
+  const vTxt=(C.frontVertical.value||'').trim();
+  if(vTxt){
+    const vSize=parseInt(C.frontVSize.value);
+    const vGap=parseInt(C.frontVGap.value)/100;
+    const vYpct=parseFloat(C.frontVY.value)/100;
+    const effect=C.bevel.value;
+    const frontFont=C.frontFontSel.value;
+
+    ctx.font = `${vSize}px ${frontFont}`;
+    const chars=[...vTxt];
+    const lineH=vSize*vGap;
+    const x = TAG_W/2;
+    let yTop = TAG_H * vYpct;
+    chars.forEach((ch,i)=> drawEngravedText(ctx, ch, x, yTop + i*lineH,
+      {font:ctx.font, align:'center', vAlign:'top', effect, baseColor: themes[C.theme.value].text}));
+  }
+
+  // 底部
+  const bTxt=(C.frontBottom.value||'').trim();
+  if(bTxt){
+    const bSize=parseInt(C.frontBottomSize.value), margin=parseInt(C.frontBottomMargin.value);
+    const frontFont=C.frontFontSel.value;
+    ctx.font = `600 ${bSize}px ${frontFont}`;
+    drawEngravedText(ctx, bTxt, TAG_W/2, TAG_H - margin,
+      { font: ctx.font, align:'center', vAlign:'alphabetic', effect: C.bevel.value, baseColor: themes[C.theme.value].text });
+  }
+}else{
+  drawTagBase(ctx, theme);
+  const orient = C.backOrient.value;
+
+  function drawBackInner(CTX, W, H){
+    if(C.backMode.value==='text'){
+      const f=parseInt(C.backFontSize.value), gap=parseInt(C.backLineGap.value)/100, effect=C.bevel.value, backFont=C.backFontSel.value;
+      const lines=[C.b1.value,C.b2.value,C.b3.value,C.b4.value,C.b5.value].map(s=>(s||'').trim()).filter(Boolean);
+      if(lines.length){
+        CTX.font = `700 ${f}px ${backFont}`;
+        CTX.textAlign='center'; CTX.textBaseline='alphabetic';
+        const lineH=f*gap, totalH=lines.length*lineH; let y=(H-totalH)/2 + f;
+        for(const L of lines){ const text=L.replace(/\s+/g,' ').toUpperCase();
+          drawEngravedText(CTX, text, W/2, y, { font: CTX.font, align:'center', vAlign:'alphabetic', effect, baseColor: themes[C.theme.value].text });
+          y+=lineH;
+        }
+      }
+    }else if(backImg){
+      const pad=parseInt(C.imgPadding.value), boxW=W-pad*2, boxH=H-pad*2, scalePct=parseInt(C.imgScale.value)/100, fit=C.imgFit.value;
+      const arImg=backImg.width/backImg.height, arBox=boxW/boxH;
+      let drawW, drawH;
+      if(fit==='contain'){ if(arImg>arBox){ drawW=boxW*scalePct; drawH=drawW/arImg; } else{ drawH=boxH*scalePct; drawW=drawH*arImg; } }
+      else{ if(arImg>arBox){ drawH=boxH*scalePct; drawW=drawH*arImg; } else{ drawW=boxW*scalePct; drawH=drawW/arImg; } }
+      const x=(W-drawW)/2, y=(H-drawH)/2;
+      const mode=C.monoMode.value;
+      const r=(parseFloat(C.radiusPct.value)/100)*Math.min(TAG_W,TAG_H)-10;
+      if(mode==='off'){
+        CTX.save(); roundRect(CTX,10,10,W-20,H-20,r); CTX.clip();
+        CTX.globalAlpha=.92; CTX.drawImage(backImg,x,y,drawW,drawH); CTX.restore();
+      }else{
+        const temp=document.createElement('canvas'); temp.width=Math.max(1,Math.floor(drawW)); temp.height=Math.max(1,Math.floor(drawH));
+        temp.getContext('2d').drawImage(backImg,0,0,temp.width,temp.height);
+        const mono=makeMonoCanvas(temp, mode, C.monoColor.value, parseInt(C.monoThresh.value), parseInt(C.outlineW.value));
+        CTX.save(); roundRect(CTX,10,10,W-20,H-20,r); CTX.clip(); CTX.drawImage(mono,x,y); CTX.restore();
+      }
+    }
+  }
+
+  if(orient==='portrait'){
+    drawBackInner(ctx, TAG_W, TAG_H);
+  }else{
+    ctx.save();
+    ctx.translate(TAG_W/2, TAG_H/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.translate(-TAG_H/2, -TAG_W/2);
+    drawBackInner(ctx, TAG_H, TAG_W);
+    ctx.restore();
+  }
+}
+
+
+    // 下載
+    const a=document.createElement('a');
+    a.href=cnv.toDataURL('image/png');
+    a.download=(side==='front'?'dogtag_front_portrait':'dogtag_back_portrait')+`@${mult}x.png`;
+    a.click();
+  }
+
+  // 綁定
+  document.querySelectorAll('#controls input, #controls select').forEach(el=>{
+    el.addEventListener('input', render); el.addEventListener('change', render);
+  });
+  C.saveFront.addEventListener('click', ()=>saveCanvas('front'));
+  C.saveBack.addEventListener('click', ()=>saveCanvas('back'));
+
+  C.backMode.addEventListener('change', ()=>{
+    const isText = C.backMode.value==='text';
+    document.getElementById('backTextFields').style.display = isText ? '' : 'none';
+    document.getElementById('backImageFields').style.display = isText ? 'none' : '';
+    render();
+  });
+
+  C.imgInput.addEventListener('change', e=>{
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+    const img = new Image();
+    img.onload = ()=>{ backImg = img; render(); };
+    img.src = URL.createObjectURL(file);
+  });
+
+  // 模板
+  C.fillUS.addEventListener('click', ()=>{
+    C.b1.value='YAN HSU';
+    C.b2.value='ID 20250121';
+    C.b3.value='O POS';
+    C.b4.value='NO PREFERENCE';
+    C.b5.value='US ARMY';
+    render();
+  });
+
+  C.tplMil.addEventListener('click', () => {
+  C.b1.value='HSU YAN';
+  C.b2.value='DOD ID 20250121';
+  C.b3.value='O POS';
+  C.b4.value='NO PREFERENCE';
+  C.b5.value='US ARMY';
+  C.backMode.value='text';
+  render();
+});
+C.tplPersonal.addEventListener('click', () => {
+  C.b1.value='HOWLBLAZE';
+  C.b2.value='炎旭';
+  C.b3.value='2025.01.21';
+  C.b4.value='STAY TRUE';
+  C.b5.value='—';
+  C.backMode.value='text';
+  render();
+});
+C.tplICE.addEventListener('click', () => {
+  C.b1.value='HSU YAN';
+  C.b2.value='DOB 2025-01-21';
+  C.b3.value='O POS';
+  C.b4.value='PENICILLIN ALLERGY';
+  C.b5.value='ICE: +886-9XXXXXXX';
+  C.backMode.value='text';
+  render();
+});
+
+
+  // 美軍規格預設（尺寸/孔徑）
+  C.presetMil.addEventListener('click', ()=>{
+    // 孔徑約 3.5mm ≈ 6.9% 高度；孔位靠左上（你仍可調）
+    C.holePct.value = 6.9;
+    C.holeX.value   = 22;   // 約靠左
+    C.holeY.value   = 9.5;  // 約靠上
+    C.radiusPct.value = 18;
+    C.theme.value = 'silver';
+    render();
+  });
+
+  // 初次渲染
+  render();
+})();
+</script>
+</body>
+</html>
