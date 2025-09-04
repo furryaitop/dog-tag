@@ -309,7 +309,7 @@
         <div class="panel" id="controls">
             <h2>前面（Front）</h2>
             <div class="row"><label>直排文字（例：炎旭）</label><input id="frontVertical" type="text" value="炎旭"></div>
-            <div class="row"><label>底部橫排（例：2025.01.21）</label><input id="frontBottom" type="text" value="2025.01.21">
+            <div class="row"><label>底部橫排（例：2025.01.25）</label><input id="frontBottom" type="text" value="2025.01.25">
             </div>
             <div class="row">
                 <label>上方橫排（英文名）</label>
@@ -467,9 +467,6 @@
                         <option value="black">消光黑</option>
                     </select>
                 </div>
-                <div class="row">
-                    <label>角圓弧（% 高度）</label><input id="radiusPct" type="range" min="8" max="25" value="18">
-                </div>
             </div>
             <div class="grid">
                 <div class="row"><label>吊孔大小（% 高度）</label><input id="holePct" type="range" min="3" max="12" step="0.1"
@@ -584,7 +581,7 @@
                 monoMode: $('monoMode'), monoColor: $('monoColor'),
                 monoThresh: $('monoThresh'), outlineW: $('outlineW'),
 
-                theme: $('theme'), radiusPct: $('radiusPct'),
+                theme: $('theme'),
                 holePct: $('holePct'), holeX: $('holeX'), holeY: $('holeY'),
 
                 presetMil: $('presetMil'), scale: $('scale'),
@@ -633,7 +630,7 @@
 
             // 維持名稱：dogtagPath(ctx, x, y, w, h, rIgnored, bulgeIgnored)
             // 造型：左右直線＋上下扁弧（非圓角、非半圓）
-            function dogtagPath(ctx, x, y, w, h/*, rIgnored, bulgeIgnored */) {
+            function dogtagPath(ctx, x, y, w, h) {
                 // 想微調就改這兩個比例（占整體高度）
                 const topSag = h * 0.15;  // 上弧高度 ~6.5%H
                 const botSag = h * 0.15;  // 下弧高度 ~8.5%H
@@ -657,9 +654,9 @@
                 ctx.closePath();
             }
 
-            // 維持名稱：dogtagPathInset(ctx, inset, w, h, rIgnored, bulgeIgnored)
+            // 維持名稱：dogtagPathInset(ctx, inset, w, h)
             // 內縮同形狀，給描邊/高光/裁切用
-            function dogtagPathInset(ctx, inset, w, h/*, rIgnored, bulgeIgnored */) {
+            function dogtagPathInset(ctx, inset, w, h) {
                 ctx.save();
                 ctx.translate(inset, inset);
                 const W = w - inset * 2;
@@ -672,7 +669,6 @@
 
             // 畫底板與孔
             function drawTagBase(ctx, opt, mirror = false) {
-                const r = (parseFloat(C.radiusPct.value) / 100) * TAG_H;
                 const holePct = parseFloat(C.holePct.value) / 100;
                 const holeXp = parseFloat(C.holeX.value) / 100;
                 const holeYp = parseFloat(C.holeY.value) / 100;
@@ -688,9 +684,6 @@
                 const grad = ctx.createLinearGradient(0, 0, 0, TAG_H);
                 grad.addColorStop(0, opt.bg2); grad.addColorStop(.55, opt.bg1); grad.addColorStop(1, opt.bg2);
                 ctx.fillStyle = grad;
-
-                // 建議弧度：高度的 5%（看起來最接近實物），你也可以綁一個 slider
-                const bulgePx = TAG_H * 0.08;
 
                 dogtagPath(ctx, 0, 0, TAG_W, TAG_H);
                 ctx.fill();
@@ -889,10 +882,9 @@
                         const x = (W - drawW) / 2; const y = (H - drawH) / 2;
 
                         const mode = C.monoMode.value;
-                        const r = (parseFloat(C.radiusPct.value) / 100) * Math.min(W, H) - 10;
                         if (mode === 'off') {
                             CTX.save();
-                            dogtagPathInset(CTX, 10, W, H, r, H * 0.05); // 和上面同樣 bulgePx
+                            dogtagPathInset(CTX, 10, W, H);
                             ctx.clip();
                             CTX.globalAlpha = .92; CTX.drawImage(backImg, x, y, drawW, drawH);
                             CTX.restore();
@@ -903,7 +895,7 @@
                             temp.getContext('2d').drawImage(backImg, 0, 0, temp.width, temp.height);
                             const mono = makeMonoCanvas(temp, mode, C.monoColor.value, parseInt(C.monoThresh.value), parseInt(C.outlineW.value));
                             CTX.save();
-                            dogtagPathInset(CTX, 10, W, H, r, H * 0.05); // 和上面同樣 bulgePx
+                            dogtagPathInset(CTX, 10, W, H);
                             ctx.clip();
                             CTX.drawImage(mono, x, y);
                             CTX.restore();
@@ -966,7 +958,6 @@
 
                     // look & hole
                     theme: C.theme.value,
-                    radiusPct: C.radiusPct.value,
                     holePct: C.holePct.value,
                     holeX: C.holeX.value,
                     holeY: C.holeY.value,
@@ -1024,7 +1015,6 @@
                 set(C.outlineW, s.outlineW);
 
                 set(C.theme, s.theme);
-                set(C.radiusPct, s.radiusPct);
                 set(C.holePct, s.holePct);
                 set(C.holeX, s.holeX);
                 set(C.holeY, s.holeY);
@@ -1058,27 +1048,69 @@
                 } catch (e) { console.warn('loadFromLocal 失敗', e); return null; }
             }
 
+            const DEFAULTS = {
+                // front
+                frontVertical: '炎旭',
+                frontBottom: '2025.01.25',
+                frontTop: 'HowlBlaze',
+                frontTopSize: '60',
+                frontTopMargin: '180',
+                frontVSize: '220',
+                frontVGap: '110',
+                frontVY: '33',
+                frontBottomSize: '54',
+                frontBottomMargin: '60',
+                bevel: 'engraved',
+                frontFontSel: '"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif',
+
+                // back
+                backMode: 'text',
+                backOrient: 'landscape',
+                backFontSel: 'ui-monospace,"Roboto Mono",Menlo,Consolas,monospace',
+                b1: '', b2: '', b3: '', b4: '', b5: '',
+                backFontSize: '70',
+                backLineGap: '110',
+
+                // image
+                imgScale: '100', imgPadding: '12', imgFit: 'contain',
+                monoMode: 'off', monoColor: '#111111', monoThresh: '140', outlineW: '6',
+
+                // look & hole
+                theme: 'silver',
+                holePct: '3.45', holeX: '50', holeY: '9.5',
+
+                // export
+                scale: '2',
+            };
+
             // 產生分享連結（把 JSON 壓成 base64 放到 ?cfg=）
             function buildShareURL() {
                 const s = collectState();
                 // 圖片可能很大 → 你想分享「不含圖片」就刪掉下一行
                 // delete s.backImgData;
 
-                const json = JSON.stringify(s);
-                const b64 = btoa(unescape(encodeURIComponent(json))); // 安全轉碼
-                const url = `${location.origin}${location.pathname}?cfg=${b64}`;
-                return url;
+                // 只保留與預設不同的鍵
+                const diff = {};
+                for (const k in s) {
+                    if (DEFAULTS[k] === undefined || String(s[k]) !== String(DEFAULTS[k])) {
+                        diff[k] = s[k];
+                    }
+                }
+
+                const json = JSON.stringify(diff);
+                const b64 = btoa(unescape(encodeURIComponent(json)));
+                return `${location.origin}${location.pathname}?cfg=${b64}`;
             }
 
-            // 從 URL ?cfg= 還原
+            // tryLoadFromURL() 補：把 diff 套回去（沒有的就用 DEFAULTS）
             function tryLoadFromURL() {
                 const q = new URLSearchParams(location.search);
                 const cfg = q.get('cfg');
                 if (!cfg) return false;
                 try {
                     const json = decodeURIComponent(escape(atob(cfg)));
-                    const s = JSON.parse(json);
-                    applyState(s);
+                    const diff = JSON.parse(json);
+                    applyState({ ...DEFAULTS, ...diff });
                     return true;
                 } catch (e) { console.warn('解析 cfg 失敗', e); return false; }
             }
@@ -1200,14 +1232,16 @@
                             const mode = C.monoMode.value;
                             const r = (parseFloat(C.radiusPct.value) / 100) * Math.min(W, H) - 10;
                             if (mode === 'off') {
-                                CTX.save(); dogtagPathInset(CTX, 10, W, H, r, H * 0.05); // 和上面同樣 bulgePx
+                                CTX.save();
+                                dogtagPathInset(CTX, 10, W, H);
                                 ctx.clip();
                                 CTX.globalAlpha = .92; CTX.drawImage(backImg, x, y, drawW, drawH); CTX.restore();
                             } else {
                                 const temp = document.createElement('canvas'); temp.width = Math.max(1, Math.floor(drawW)); temp.height = Math.max(1, Math.floor(drawH));
                                 temp.getContext('2d').drawImage(backImg, 0, 0, temp.width, temp.height);
                                 const mono = makeMonoCanvas(temp, mode, C.monoColor.value, parseInt(C.monoThresh.value), parseInt(C.outlineW.value));
-                                CTX.save(); dogtagPathInset(CTX, 10, W, H, r, H * 0.05); // 和上面同樣 bulgePx
+                                CTX.save();
+                                dogtagPathInset(CTX, 10, W, H);
                                 ctx.clip(); CTX.drawImage(mono, x, y); CTX.restore();
                             }
                         }
@@ -1371,8 +1405,8 @@
             C.tplPersonal.addEventListener('click', () => {
                 C.b1.value = 'HOWLBLAZE';
                 C.b2.value = '炎旭';
-                C.b3.value = '2025.01.21';
-                C.b4.value = 'STAY TRUE';
+                C.b3.value = '2025.01.25';
+                C.b4.value = 'STAY TRUE';x
                 C.b5.value = '—';
                 C.backMode.value = 'text';
                 onAnyChange();
@@ -1387,13 +1421,13 @@
                 onAnyChange();
             });
 
+
             // 美軍規格預設（尺寸/孔徑）
             C.presetMil.addEventListener('click', () => {
                 // 孔徑約 3.5mm ≈ 6.9% 高度；孔位靠左上（你仍可調）
-                C.holePct.value = 6.9;
-                C.holeX.value = 22;   // 約靠左
+                C.holePct.value = 3.45;
+                C.holeX.value = 50;   // 約靠左
                 C.holeY.value = 9.5;  // 約靠上
-                C.radiusPct.value = 18;
                 C.theme.value = 'silver';
                 onAnyChange();
             });
